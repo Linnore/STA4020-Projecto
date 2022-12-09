@@ -2,6 +2,8 @@
 
 ## Data descriptions:
  - Todo: Describe how data are organized.
+ - The folder `000300Weight_of_Constituent_Stock` contains the historical weight of constituent data from 2009-12-01 to 2022-12-08 of the market index CSI300, or in Chinese 沪深300. Note that raw data are downloaded from CSMAR in three seperated files. Our data preparation pipeline conbines and generates the whole dataset as `All_IDX_Smprat.csv`. 
+ - By checking those that are constituents of CSI300 index constantly from 2009-12-01 to 2022-12-08, 52 stocks are selected as they have received sufficent interest by CSI300 during the past decade. Monthly return rates of these stocks are then collected. We further re-arranged these data into `Monthly_Returen_Rates.csv`. 
 
 
 ## Structure
