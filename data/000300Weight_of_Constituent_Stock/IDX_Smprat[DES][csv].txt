@@ -1,0 +1,5 @@
+Indexcd [Index Code of Stock Exchange] - The actual index code released by the stock exchange
+Enddt [Deadline] - Denoted by YYYY-MM-DD
+Stkcd [Code of Constituent Stock] - The stock code released by the Shanghai Stock Exchange and the Shenzhen Stock Exchange
+Constdnme_en [Acronym of Constituent Stock] - The stock code released by the Shanghai Stock Exchange and the Shenzhen Stock Exchange
+Weight [Weight] - 
