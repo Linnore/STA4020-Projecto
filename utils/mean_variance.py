@@ -111,7 +111,7 @@ def RC_upper_bound(w, p_cov, U):
 
 
 def cons_large_risk_constraint(p_cov, U):
-    """Return the set of constraints: RCi <= Ui for all i=1, ..., N. 
+    """Return the set of constraints: RCi <= Ui for all i=1, ..., N.
         I.e., the constraints about the marignal risk w.r.t. each stock (upper bound).
     """
     return {'type': 'ineq',
@@ -123,7 +123,7 @@ def RC_lower_bound(w, p_cov, L):
 
 
 def cons_small_risk_constraint(p_cov, L):
-    """Return the set of constraints: RCi >= Li for all i=1, ..., N. 
+    """Return the set of constraints: RCi >= Li for all i=1, ..., N.
         I.e., the constraints about the marignal risk w.r.t. each stock (lower bound).
     """
     return {'type': 'ineq',
@@ -154,17 +154,34 @@ def rb_p_weights(p_mean, p_cov, objective=obj_Exp_minus_RC, constraints=[cons_no
 # contruct portfolio
 
 
-def portfolio_construction(momentum_period, rank, R_df, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+def portfolio_construction(momentum_period, rank, R_excess_df, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+    """This function construct monthly updated portfolio. At each month, stocks with good momentum
+        will be selected from the stock pool provided by R_df. Number of stocks to be selected is based on the pool size, rank parameter
+        and the performance of these stocks. For those with negative momentum of excess return during the momentum period, the
+        portfolio will give them 0 weight.
+
+        Args:
+            momentum_period (int): number of month to consider the momentum.
+            rank (int): number of the best stocks to consider based on the momentum.
+            R_excess_df (np.ndarray): The stock pool. R_df contains the excess return rates of all stocks.
+            test_start_time (datetime, optional): The starting time of the test period in R_excess_df. Defaults to pd.Timestamp("2017").
+            objective (function, optional): The objective function to minimize. Defaults to obj_Exp_minus_RC.
+            constraints (list, optional): The list of constraints added to the optimization problem. Defaults to [cons_non_negative_weight()].
+
+        Returns:
+            R_excess_hat (np.ndarray): The estimated monthly excess return given by the monthly updated portfolio.
+            w_hat (np.ndarray): The monthly updated portfolio we constructed.
+    """
     # portfolio dates
-    test_month = R_df.index[R_df.index >= test_start_time]
+    test_month = R_excess_df.index[R_excess_df.index >= test_start_time]
 
     # initialise portfolio return matrix
-    R_hat = np.zeros((test_month.shape[0], R_df.shape[1]))
-    w_hat = np.zeros((test_month.shape[0], R_df.shape[1]))
+    R_excess_hat = np.zeros((test_month.shape[0], R_excess_df.shape[1]))
+    w_hat = np.zeros((test_month.shape[0], R_excess_df.shape[1]))
     opt_results = np.empty(test_month.shape[0], dtype=object)
 
     for i, crt_month in enumerate(test_month):
-        R_np = R_df[R_df.index <= crt_month].values
+        R_np = R_excess_df[R_excess_df.index <= crt_month].values
 
         momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
         ranking_idx = np.argsort(momentum)[::-1]
@@ -185,7 +202,6 @@ def portfolio_construction(momentum_period, rank, R_df, test_start_time=pd.Times
         if not opt_results[i].success:
             print("Warning! Fail to solve the optimization problem!")
         w_hat[i, ranking_idx] = opt_results[i].x
-        R_hat[i, ranking_idx] = w_hat[i, ranking_idx] * crt_return
+        R_excess_hat[i, ranking_idx] = w_hat[i, ranking_idx] * crt_return
 
-    return R_hat, w_hat
-
+    return R_excess_hat, w_hat
