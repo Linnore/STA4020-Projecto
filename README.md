@@ -4,8 +4,10 @@
 git clone https://github.com/Linnore/STA4020-Projecto.git
 
 ## Pipeline
-*.ipynb
+The main workflow is shown in `basic_risk_budgeting.ipynb`.
 
+
+Other pipelines: see *.ipynb
 ## Utilities
 *.py file in the folder utils
 
