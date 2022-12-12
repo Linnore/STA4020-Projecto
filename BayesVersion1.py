@@ -144,7 +144,7 @@ def main():
     stockID = stock_list[1]
     infoDemo(stockID)
     R_df, R_list = BayesPredict(stockID, history=10, acc=6)
-    BayesPlot(R_list, R_df)
+    #BayesPlot(R_list, R_df)
 
 time1 = time.time()
 main()
