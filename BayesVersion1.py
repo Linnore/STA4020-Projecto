@@ -1,38 +1,20 @@
 from sympy import *
 import numpy as np
 import pandas as pd
-import os
-import math
 import matplotlib.pyplot as plt
 from scipy.special import gamma
 import time
-path = './train' # path of data
-acc = 10         # the accuracy up to 12 decimal points
-def getLogReturn(stockID=0):
-    open, close, high, low, vol, adj = read_stock(stockID)
-    log_price = [math.log(p) for p in adj]
-    log_return = [round(log_price[i+1]-log_price[i],5) for i in range(len(log_price)-1)]
-    return log_return
 
-def get_stock_names(path):
-    '''input: a path of data; 
-    output: a list of data file names'''
-    if os.path.isdir(path):
-        fileNames = os.listdir(path)
-        print('[INFO] found {} stocks'.format(len(fileNames)))
-        for i in range(len(fileNames)):
-            fileNames[i] = path + '/' + fileNames[i]
-    else:
-        print('[INFO] Invalid image path')
-    return fileNames
-    
-def read_stock(idx):
-    #open, close, high, low = [], [], [], []
-    df = pd.read_csv(stock_names[idx])
-    open, close, high, low, vol, adj = list(df['Open']), df['Close'], df['High'], df['Low'], df['Volume'], df['Adj Close']
-    return open, close, high, low, vol, adj
+stock_list = [600519,600030,601857,601628]
+def data_load(stock_id):
+    ID_str = str(stock_id)
+    all_data = pd.read_csv('./clean_data/cleaned_data.csv')
+    a_stock = pd.DataFrame(all_data, columns=['date', ID_str])
+    monthR_list = list(a_stock[ID_str])
+    date_list = list(a_stock['date'])
+    return a_stock, date_list, monthR_list  # Return a list of monthly return of stock id
 
-def Bayes(returnR, sample_var, model='normal', batch_size=10):
+def BayesPeak(returnR, sample_var, model='normal', batch_size=1):
     X = symbols('X')
     miu = symbols('miu')
     var1 = 0.01
@@ -64,22 +46,22 @@ def Bayes(returnR, sample_var, model='normal', batch_size=10):
     print(postList,'the lenth of postList:',len(postList))
 
     final_belief = postList[-1]
-    x_axis = [0.01*i for i in range(-100,100)]
-    last_pdf = [final_belief.subs(miu, i) for i in x_axis]
-    prior_pdf = [paraPr.subs(miu,i) for i in x_axis]
-    plt.plot(x_axis,last_pdf)
-    plt.plot(x_axis,prior_pdf)
-    for post in postList[::10]:  # see the evolution of posterior distribution 
-        post_pdf = [post.subs(miu,i) for i in x_axis]
-        plt.plot(x_axis, post_pdf)
-    plt.show()
+    # x_axis = [0.01*i for i in range(-100,100)]
+    # last_pdf = [final_belief.subs(miu, i) for i in x_axis]
+    # prior_pdf = [paraPr.subs(miu,i) for i in x_axis]
+    # plt.plot(x_axis,last_pdf)
+    # plt.plot(x_axis,prior_pdf)
+    # for post in postList[::10]:  # see the evolution of posterior distribution 
+    #     post_pdf = [post.subs(miu,i) for i in x_axis]
+    #     plt.plot(x_axis, post_pdf)
+    # plt.show()
     if model == 'normal':
         miu_bayes = solve(Eq(log(final_belief).diff(miu), 0), miu)[0] #(lhs: Any, rhs: Any) # print(miu_bayes)# is a list.
     else:
         miu_bayes = solveMax(final_belief, miu, minimumR, maximumR)
     return miu_bayes
 
-def solveMax(func, var, lowerbdd, upperbdd):
+def solveMax(func, var, lowerbdd, upperbdd, acc=6):
     derivative = func.diff(var)
     p1, p2 = lowerbdd, upperbdd
     while p2-p1 > 10**(-acc):
@@ -98,44 +80,73 @@ def solveMax(func, var, lowerbdd, upperbdd):
     print('The worst and best daily returns are', lowerbdd, upperbdd, 'respectively, I use bisection to find the peak of posterior miu=', mid)
     return (p1+p2)/2
 
-
-def demo(stockID=0):
-    returnR = getLogReturn(stockID=stockID)
+def BayesPredict(stockID, history=10, acc=6):
+    a_stock, date_list, returnR = data_load(stockID)
     R_np = np.array(returnR)
     sample_var = np.var(R_np)
-    # np.savetxt(str(STOCK_ID)+'.csv', np.array(log_return), delimiter=",")
-    plt.hist(returnR, bins=200) # We expect that "Log return" follows normal.
-    # plt.plot([i for i in range(len(open))], adj)
-    plt.show()
-    print('Variance of historical return is:', sample_var)
-    bayes_mean = Bayes(returnR, sample_var=sample_var, model='normal', batch_size=100)
-    # bayes_mean = Bayes(returnR, sample_var=sample_var, model='t', batch_size=50)
-    # bayes_mean = Bayes(returnR, sample_var=sample_var, model='cauchy', batch_size=50)
-    print('Sample mean of historical return is:', round(np.mean(R_np), acc), '*100% every day [not annulized]')
-    print('Bayesian estimate of mean return is:', round(bayes_mean, acc), '*100% every day [not annulized]')
+    predicted_df = a_stock.copy()
+    for idx in range(1, len(date_list)):
+        if idx < history:
+            bayes_mean_estimate = BayesPeak(returnR[:idx], sample_var=sample_var, model='normal', batch_size=2)
+        else:
+            bayes_mean_estimate = BayesPeak(returnR[idx-history:idx], sample_var=sample_var, model='normal', batch_size=2)
+            # (model = 't', 'cauchy')
+
+        print('Bayes estimate the mean return of month', date_list[idx], 'is', bayes_mean_estimate)
+        print('The true monthly return is', returnR[idx])
+            
+    predicted_df.loc[idx, str(stockID)] = bayes_mean_estimate
+    predicted_df.to_csv(str(stockID)+'BayesPredict.csv')
+    predicted_list = list(predicted_df[str(stockID)])
+    return predicted_df,  predicted_list
+    
 
 def getAllmean():
     mean_var_list = []
     mean_list = []
-    for i in range(len(stock_names)):
-        returnR = getLogReturn(stockID=i)
+    for i in range(len(stock_list)):
+        returnR = data_load(stock_id=i)
         R_np = np.array(returnR)
         sample_var = np.var(R_np)
         sample_mean = np.mean(R_np)
         mean_var_list.append([sample_mean, sample_var])
         mean_list.append(sample_mean)
-    stock_list = [((stock.split('/'))[-1].split('.'))[0] for stock in stock_names]
     print('All the stocks are listed here:', stock_list)
-    df = pd.DataFrame(data=mean_var_list, index=stock_list, columns=['2001-2018 sample mean (RV: daily log-return)', '2001-2018 sample variance (RV: daily log-return)'])
+    df = pd.DataFrame(data=mean_var_list, index=stock_list, columns=['2010-2018 sample mean (RV: daily log-return)', '2001-2018 sample variance (RV: daily log-return)'])
     df.to_csv('Mean-var of daily log-return.csv')
     print('Successfully save in csv.')
     max_return = max(mean_list)
     print('The best stock in 2001-2018 is:', stock_list[mean_list.index(max_return)], 'It has daily return rate on average:', max_return)
     # return mean_var_list
 
+def infoDemo(stockID):
+    print(stockID,'info is shown below.')
+    _, _, returnR = data_load(stockID)
+    R_np = np.array(returnR)
+    sample_var = np.var(R_np)
+    plt.hist(returnR, bins = 20) # We expect that "Log return" follows normal.
+    plt.xlabel('Monthly return')
+    plt.ylabel('Counts (return fall in each bin)')
+    plt.title('Visually check the normality assumption')
+    plt.show()
+    print('Variance of historical return is:', sample_var)
+    print('Sample mean of historical return is:', round(np.mean(R_np), 6), '*100% every month [not annulized]')
+
+def BayesPlot(predicted_list, true_list):
+    t_list = [i for i in range(len(true_list))]
+    plt.plot(t_list, predicted_list, label='Predict')
+    plt.plot(t_list, true_list, label = 'Real')
+    plt.legend()
+    plt.show() 
+
+def main():
+    #infoDemo(stockID=stock_list[0])
+    stockID = stock_list[1]
+    infoDemo(stockID)
+    R_df, R_list = BayesPredict(stockID, history=10, acc=6)
+    #BayesPlot(R_list, R_df)
+
 time1 = time.time()
-stock_names = get_stock_names(path) # get the names of images # print(stock_names)
-demo(0)
+main()
 time2 = time.time()
-getAllmean()
-print(time2-time1,'---running time')
+print('Running time:', round(time2-time1,4))
