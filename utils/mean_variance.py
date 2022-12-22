@@ -234,15 +234,16 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
 
     for i, crt_month in enumerate(test_month):
         R_np = R_excess_df[R_excess_df.index <= crt_month].values
-        momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
-        ranking_idx = np.argsort(momentum)[::-1]
-        momentum = momentum[ranking_idx]
+        # momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
+        # ranking_idx = np.argsort(momentum)[::-1]
+        ranking_idx = np.arange(rank)
+        # momentum = momentum[ranking_idx]
 
-        numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
-        numOfInterest = max(num_atLeast, numOfInterest)
+        # numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
+        # numOfInterest = max(num_atLeast, numOfInterest)
+        numOfInterest = R_excess_df.shape[1]
         if numOfInterest > num_atLeast:
             ranking_idx = ranking_idx[:numOfInterest]
-            print(ranking_idx)
             R_np = R_np[:, ranking_idx]
             crt_return = R_np[-1]
 
@@ -251,8 +252,8 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
             # Here, we use Bayesian estimate for mu
             mu = Bayes_df.loc[crt_month, :]
             mu = mu.iloc[ranking_idx]
-            print('current month', crt_month, 'The Bayesian prediction of this month return')
-            print(mu)
+            # print('current month', crt_month, 'The Bayesian prediction of this month return')
+            # print(mu)
             C_hat = np.cov(R_train.T, ddof=0)
             if numOfInterest == 1:
                 mu = np.array([mu])
