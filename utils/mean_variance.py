@@ -236,12 +236,12 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
         R_np = R_excess_df[R_excess_df.index <= crt_month].values
         # momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
         # ranking_idx = np.argsort(momentum)[::-1]
+        numOfInterest = R_excess_df.shape[1]
         ranking_idx = np.arange(rank)
         # momentum = momentum[ranking_idx]
 
         # numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
         # numOfInterest = max(num_atLeast, numOfInterest)
-        numOfInterest = R_excess_df.shape[1]
         if numOfInterest > num_atLeast:
             ranking_idx = ranking_idx[:numOfInterest]
             R_np = R_np[:, ranking_idx]
