@@ -239,9 +239,9 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
         numOfInterest = R_excess_df.shape[1]
         ranking_idx = np.arange(rank)
         # momentum = momentum[ranking_idx]
-
         # numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
         # numOfInterest = max(num_atLeast, numOfInterest)
+        
         if numOfInterest > num_atLeast:
             ranking_idx = ranking_idx[:numOfInterest]
             R_np = R_np[:, ranking_idx]
