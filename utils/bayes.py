@@ -49,7 +49,8 @@ def bayesPredict(stocks, agent_type, batch_size=10, relaxCoeff=8):
         if name.isdigit():
             stock_list.append(name)
     predict_df = pd.DataFrame(stocks, columns=stock_list)
-    predict_df.index = pd.to_datetime(stocks['Trdmnt'])
+    timeLine = pd.to_datetime(stocks['Trdmnt'])
+    predict_df.index = timeLine
 
     for name in stock_list:
         returnR = stocks[name]
@@ -67,7 +68,7 @@ def bayesPredict(stocks, agent_type, batch_size=10, relaxCoeff=8):
             percentile_R = norm.ppf(q=agent_type, loc=miu, scale=(sigma2**0.5))
             if percentile_R < -1 or percentile_R > 1:
                 print('Strange Prediction!')
-            predict_df.loc[date_list[seq_num], name] = percentile_R
+            predict_df.loc[timeLine[seq_num], name] = percentile_R
 
             #print(date_list[seq_num], 'Bayes predicted \mu', round(miu,5), \
             #    'Actual return is', round(returnR[seq_num],5), \
