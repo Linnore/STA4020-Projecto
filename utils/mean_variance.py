@@ -13,7 +13,7 @@ from . import test_result
 # risk budgeting approach optimisation object function
 
 
-def obj_RC(w, p_cov):
+def obj_RC(w,mu, p_cov):
     """Objective function for minimize RC. Given portfolio w and covariance matrix p_cov, return the variance measurement RC(w).
 
     Args:
@@ -26,7 +26,7 @@ def obj_RC(w, p_cov):
     return norm(w*p_cov@w)**2/(w.T@p_cov@w)
 
 
-def obj_Exp(w, mu):
+def obj_Exp(w, mu, p_cov):
     """Objective function for maximize expected return of the portfolio w.
 
     Args:
@@ -179,7 +179,6 @@ def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=
         momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
         ranking_idx = np.argsort(momentum)[::-1]
         momentum = momentum[ranking_idx]
-
         numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
         numOfInterest = max(num_atLeast, numOfInterest)
         if numOfInterest > num_atLeast:
@@ -191,7 +190,7 @@ def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=
 
             # Todo: use different estimators for mu and C
             mu = R_train.mean(axis=0)
-            C_hat = np.cov(R_train.T, ddof=0)
+            C_hat = np.cov(R_train.T, ddof=-1)
             if numOfInterest == 1:
                 mu = np.array([mu])
                 C_hat = np.array([[C_hat]])
@@ -202,12 +201,13 @@ def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=
             w_hat[i, ranking_idx] = opt_results[i].x
             R_excess_hat[i, ranking_idx] = w_hat[i, ranking_idx] * crt_return
         else:
-            print("Forced least number of assets for investment at:", crt_month)
+            #print("Forced least number of assets for investment at:", crt_month)
+            f = 1
     return R_excess_hat, w_hat
 
 
 
-def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLeast=.001, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLeast=.005, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
     """This function construct monthly updated portfolio using another approach.
 
         Args:
@@ -266,4 +266,66 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
             R_excess_hat[i, ranking_idx] = w_hat[i, ranking_idx] * crt_return
         else:
             print("Forced least number of assets for investment at:", crt_month)
+    return R_excess_hat, w_hat
+
+def portfolio3(Bayes_df,momentum_period, rank, R_excess_df, momentum_atLeast=.005, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+    """This function construct monthly updated portfolio. At each month, stocks with good momentum
+        will be selected from the stock pool provided by R_df. Number of stocks to be selected is based on the pool size, rank parameter
+        and the performance of these stocks. For those with negative momentum of excess return during the momentum period, the
+        portfolio will give them 0 weight.
+
+        Args:
+            momentum_period (int): number of month to consider the momentum.
+            rank (int): number of the best stocks to consider based on the momentum.
+            R_excess_df (np.ndarray): The stock pool. R_df contains the excess return rates of all stocks.
+            momentum_atLeast (float): Only invest the assets with momentum higher than this value.
+            num_atLeast (int): The minimum number of assets at each month's investment.
+            test_start_time (datetime, optional): The starting time of the test period in R_excess_df. Defaults to pd.Timestamp("2017").
+            objective (function, optional): The objective function to minimize. Defaults to obj_Exp_minus_RC.
+            constraints (list, optional): The list of constraints added to the optimization problem. Defaults to [cons_non_negative_weight()].
+
+        Returns:
+            R_excess_hat (np.ndarray): The estimated monthly excess return given by the monthly updated portfolio.
+            w_hat (np.ndarray): The monthly updated portfolio we constructed.
+    """
+    # portfolio dates
+    test_month = R_excess_df.index[R_excess_df.index >= test_start_time]
+
+    # initialise portfolio return matrix
+    R_excess_hat = np.zeros((test_month.shape[0], R_excess_df.shape[1]))
+    w_hat = np.zeros((test_month.shape[0], R_excess_df.shape[1]))
+    opt_results = np.empty(test_month.shape[0], dtype=object)
+
+    for i, crt_month in enumerate(test_month):
+        R_np = R_excess_df[R_excess_df.index <= crt_month].values
+        print(Bayes_df[Bayes_df.index == crt_month])
+        momentum = Bayes_df[Bayes_df.index == crt_month].values[0]
+        ranking_idx = np.argsort(momentum)[::1]
+        momentum = momentum[ranking_idx]
+        print(momentum)
+        numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
+        print(np.argmin(momentum > momentum_atLeast))
+        numOfInterest = max(num_atLeast, numOfInterest)
+        if numOfInterest > num_atLeast:
+            ranking_idx = ranking_idx[:numOfInterest]
+            R_np = R_np[:, ranking_idx]
+            crt_return = R_np[-1]
+
+            R_train = R_np[:-1, :]
+
+            # Todo: use different estimators for mu and C
+            mu = R_train.mean(axis=0)
+            C_hat = np.cov(R_train.T, ddof=0)
+            if numOfInterest == 1:
+                mu = np.array([mu])
+                C_hat = np.array([[C_hat]])
+
+            opt_results[i] = rb_p_weights(mu, C_hat, objective, constraints)
+            if not opt_results[i].success:
+                print("Warning! Fail to solve the optimization problem!")
+            w_hat[i, ranking_idx] = opt_results[i].x
+            R_excess_hat[i, ranking_idx] = w_hat[i, ranking_idx] * crt_return
+        else:
+            #print("Forced least number of assets for investment at:", crt_month)
+            f = 1
     return R_excess_hat, w_hat
