@@ -131,6 +131,9 @@ def bayesPredict_dynamic(stocks,agent_type = 0.3,batch_size=9, relaxCoeff=8,alph
     date_list = list(stocks['Trdmnt'])
     starting_idx = date_list.index(starting_date)
     stock_list = []
+    # agent_type_list = []
+    
+    
 
     for name in stocks:
         if name.isdigit():
