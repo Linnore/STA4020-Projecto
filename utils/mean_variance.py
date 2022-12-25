@@ -26,7 +26,7 @@ def obj_RC(w,mu, p_cov):
     return norm(w*p_cov@w)**2/(w.T@p_cov@w)
 
 
-def obj_Exp(w, mu, p_cov):
+def obj_Exp(w, mu, *args):
     """Objective function for maximize expected return of the portfolio w.
 
     Args:
@@ -51,7 +51,7 @@ def obj_Exp_minus_RC(w, mu, p_cov):
             The minus of expected return of the portfolio w plus the variance measurement RC(w).
                     Be aware that min -f(x) <=> max f(x).
     """
-    return obj_Exp(w, mu) + obj_RC(w, p_cov)
+    return obj_Exp(w, mu) + obj_RC(w,mu, p_cov)
 
 
 def obj_Sharpe_Ratio(w, mu, p_cov):
@@ -66,7 +66,7 @@ def obj_Sharpe_Ratio(w, mu, p_cov):
             The minus of Sharpe Ratio. Be aware that min -f(x) <=> max f(x).
     """
 
-    return obj_Exp(w, mu) / obj_RC(w, p_cov)**0.5
+    return obj_Exp(w, mu) / obj_RC(w,mu, p_cov)**0.5
 
 
 def sum_weight_upper_bound(w, U):
@@ -145,7 +145,7 @@ def rb_p_weights(p_mean, p_cov, objective=obj_Exp_minus_RC, constraints=[cons_no
 # contruct portfolio
 
 
-def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=.001, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+def portfolio_construction(momentum_period, rank, R_excess_df, rf_df,momentum_atLeast=.001, num_atLeast=0,month = 24,test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
     """This function construct monthly updated portfolio. At each month, stocks with good momentum
         will be selected from the stock pool provided by R_df. Number of stocks to be selected is based on the pool size, rank parameter
         and the performance of these stocks. For those with negative momentum of excess return during the momentum period, the
@@ -174,11 +174,17 @@ def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=
     opt_results = np.empty(test_month.shape[0], dtype=object)
 
     for i, crt_month in enumerate(test_month):
-        R_np = R_excess_df[R_excess_df.index <= crt_month].values
-
+        rf_i = rf_df[rf_df.index <= crt_month].iloc[-month:,:].values
+        R_excess_df_i = R_excess_df[R_excess_df.index <= crt_month].iloc[-month:,:]
+        numOfDays = R_excess_df_i.index.unique().size
+        stock_mask = (np.abs(R_excess_df_i+rf_i)<=1e-6).sum() == 0
+        stock_list = stock_mask.index[stock_mask]
+        R_excess_df_i = R_excess_df_i[stock_list]
+        R_np = R_excess_df_i.values
         momentum = R_np[-(momentum_period+1):-1, :].mean(axis=0)
         ranking_idx = np.argsort(momentum)[::-1]
         momentum = momentum[ranking_idx]
+        
         numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
         numOfInterest = max(num_atLeast, numOfInterest)
         if numOfInterest > num_atLeast:
@@ -190,7 +196,7 @@ def portfolio_construction(momentum_period, rank, R_excess_df, momentum_atLeast=
 
             # Todo: use different estimators for mu and C
             mu = R_train.mean(axis=0)
-            C_hat = np.cov(R_train.T, ddof=-1)
+            C_hat = np.cov(R_train.T, ddof=0)
             if numOfInterest == 1:
                 mu = np.array([mu])
                 C_hat = np.array([[C_hat]])
@@ -268,7 +274,7 @@ def portfolio2(Bayes_df, R_excess_df, momentum_period=2, rank=100, momentum_atLe
             print("Forced least number of assets for investment at:", crt_month)
     return R_excess_hat, w_hat
 
-def portfolio3(Bayes_df,momentum_period, rank, R_excess_df, momentum_atLeast=.005, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
+def portfolio3(Bayes_df,rank, R_excess_df, momentum_atLeast=.005, num_atLeast=0, test_start_time=pd.Timestamp("2017"), objective=obj_Exp_minus_RC, constraints=[cons_non_negative_weight()]):
     """This function construct monthly updated portfolio. At each month, stocks with good momentum
         will be selected from the stock pool provided by R_df. Number of stocks to be selected is based on the pool size, rank parameter
         and the performance of these stocks. For those with negative momentum of excess return during the momentum period, the
@@ -298,13 +304,10 @@ def portfolio3(Bayes_df,momentum_period, rank, R_excess_df, momentum_atLeast=.00
 
     for i, crt_month in enumerate(test_month):
         R_np = R_excess_df[R_excess_df.index <= crt_month].values
-        print(Bayes_df[Bayes_df.index == crt_month])
         momentum = Bayes_df[Bayes_df.index == crt_month].values[0]
-        ranking_idx = np.argsort(momentum)[::1]
+        ranking_idx = np.argsort(momentum)[::-1]
         momentum = momentum[ranking_idx]
-        print(momentum)
         numOfInterest = min((np.argmin(momentum > momentum_atLeast), rank, R_np.shape[1]))
-        print(np.argmin(momentum > momentum_atLeast))
         numOfInterest = max(num_atLeast, numOfInterest)
         if numOfInterest > num_atLeast:
             ranking_idx = ranking_idx[:numOfInterest]
