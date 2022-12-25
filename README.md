@@ -22,8 +22,6 @@ Other pipelines: see *.ipynb
 
 - [**Data Folder**](data)
     - [**000300Weight_of_Constituent_Stock**](data/000300Weight_of_Constituent_Stock)
-- [**ref**](ref)
-    - [**首席研报下载**](ref/首席研报下载)
 - [**utils**](utils)
 
 ## Please start reading here.
