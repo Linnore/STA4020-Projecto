@@ -4,13 +4,13 @@
 git clone https://github.com/Linnore/STA4020-Projecto.git
 
 ## Pipeline
-1. First model, the fixed bayes estimate model is in `bayes_portfolio.ipynb` - model A
+1. First model, the fixed bayes estimate model is in `1_bayes_portfolio.ipynb` - model A
 
-2. Second model, the time-variance risk-preference bayes estimate model is in `bayes_portfolio.ipynb` - model B
+2. Second model, the time-variance risk-preference bayes estimate model is in `1_bayes_portfolio.ipynb` - model B
 
-3. Third model, the momentuem filter with smoothing kernel is in `basic_risk_budgeting.ipynb`
+3. Third model, the momentuem filter with smoothing kernel is in `2_basic_risk_budgeting.ipynb` - model C
 
-4. Forth model, the momentum filter with bayes kernel is in `bayes_portfolio.ipynb` - model D
+4. Forth model, the momentum filter with bayes kernel is in `1_bayes_portfolio.ipynb` - model D
 
 Risk budgeting model, is in `./utils/mean_variance.py`
 
